@@ -129,7 +129,6 @@ class BatchCodeExec:
 
     #По кнопке Ok: получение файлов, цикл по ним
     def do_it(self, widget):
-        set_trace()
         self.get_code()
         filenames = self.ui.get_object('file_chooser').get_filenames()
         for filename in filenames:
