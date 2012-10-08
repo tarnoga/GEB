@@ -1,4 +1,4 @@
 GEB
 ===
 
-Gimp python exex-batch
+Gimp python exec-batch

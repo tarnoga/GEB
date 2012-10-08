@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys, os, shelve
+import sys, shelve
+from os import path
 import pygtk
 import gtk
+from gimpfu import *
 
 # test:
 from pdb import set_trace
@@ -12,7 +14,7 @@ from pdb import set_trace
 class BatchCodeExec:
 
     def __init__(self):
-        _path = os.path.dirname(sys.modules[self.__module__].__file__)
+        _path = path.dirname(sys.modules[self.__module__].__file__)
         self.ui = gtk.Builder()
         self.ui.add_from_file(_path+'/batch_ex.ui')
         self.ui.connect_signals(self)
@@ -39,7 +41,7 @@ class BatchCodeExec:
             self.alert('Введите ключ')
             return
         descr = self.ui.get_object('entry_descr').get_text()
-        code_buffer = self.ui.get_object('textview_code').get_buffer()
+        code_buffer = self.ui.get_object('code').get_buffer()
         code = code_buffer.get_text(
             code_buffer.get_start_iter(), code_buffer.get_end_iter())
         self.base[key] = {'descr':descr, 'code':code}
@@ -59,7 +61,7 @@ class BatchCodeExec:
             code = self.base[key]['code']
             self.ui.get_object('entry_key').set_text(key)
             self.ui.get_object('entry_descr').set_text(self.base[key]['descr'])
-            self.ui.get_object('textview_code').\
+            self.ui.get_object('code').\
                 get_buffer().set_text(self.base[key]['code'])
 
     #Заполнение списка
@@ -89,20 +91,52 @@ class BatchCodeExec:
         filter.add_pattern("*.[gG][iI][fF]")
         filter.add_pattern("*.[tT][iI][fF]")
         filter.add_pattern("*.[xX][pP][mM]")
-        file_chooser.add_filter(filter)        
+        file_chooser.add_filter(filter)   
 
-    #Выполнение кода
-    def ex_code(self, widget):
-        filenames = self.ui.get_object('file_chooser').get_filenames()
-        set_trace()
-        img, drw = self.img, self.drw
-        code_buffer = self.builder.get_object('code').get_buffer()
-        code = code_buffer.get_text(code_buffer.get_start_iter(),
-            code_buffer.get_end_iter())
+    #Получение кода (self.code)
+    def get_code(self):
+        code_buffer = self.ui.get_object('code').get_buffer()
+        self.code = code_buffer.get_text(code_buffer.get_start_iter(),
+            code_buffer.get_end_iter())         
+
+    #Выполнение кода (используется переменная img)
+    def ex_code(self, img):
         try:
-            exec(code)
+            exec(self.code)
         except Exception, error:
             self.alert(str(error)) 
+
+    #Сохранение файла
+    def save_img(self, img):
+        if img.layers.__len__() > 1:
+            pdb.gimp_image_flatten(img)
+        layer = img.layers[0]
+        root_filename = path.splitext(path.basename(img.filename))[0]
+        format = self.ui.get_object('format_combo').get_active()
+        filename = path.join(
+            self.ui.get_object('dir_select').get_filename(),
+            path.splitext(path.basename(img.filename))[0] \
+            + ('.jpg', '.tif')[format])
+        #JPG
+        if format == 0:
+            compress = self.ui.get_object('hscale1').get_value()
+            pdb.file_jpeg_save(img, layer, filename, filename, compress,
+                0, 0, 0, "Resized", 1, 0, 0, 2)
+        #TIFF
+        elif format == 1:
+            compress = int(self.ui.get_object('checkbutton1').get_active())
+            pdb.file_tiff_save(img, layer, filename, filename, compress)
+
+    #По кнопке Ok: получение файлов, цикл по ним
+    def do_it(self, widget):
+        set_trace()
+        self.get_code()
+        filenames = self.ui.get_object('file_chooser').get_filenames()
+        for filename in filenames:
+            img = pdb.gimp_file_load(filename, filename) 
+            self.ex_code(img)   
+            self.save_img(img)
+            pdb.gimp_image_delete(img)                    
 
     # Закрытие приложения
     def close_app(self, widget):

@@ -3,11 +3,11 @@
   <requires lib="gtk+" version="2.24"/>
   <!-- interface-naming-policy project-wide -->
   <object class="GtkAdjustment" id="adjustment1">
-    <property name="lower">50</property>
-    <property name="upper">100</property>
-    <property name="value">97</property>
-    <property name="step_increment">1</property>
-    <property name="page_increment">10</property>
+    <property name="lower">0.5</property>
+    <property name="upper">1</property>
+    <property name="value">0.96999999999999997</property>
+    <property name="step_increment">0.01</property>
+    <property name="page_increment">0.10000000000000001</property>
   </object>
   <object class="GtkListStore" id="liststore1">
     <columns>
@@ -244,7 +244,7 @@
                 <property name="vscrollbar_policy">automatic</property>
                 <property name="shadow_type">etched-in</property>
                 <child>
-                  <object class="GtkTextView" id="textview_code">
+                  <object class="GtkTextView" id="code">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="accepts_tab">False</property>
@@ -342,7 +342,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkFileChooserButton" id="filechooserbutton1">
+                  <object class="GtkFileChooserButton" id="dir_select">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="action">select-folder</property>
@@ -355,7 +355,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkComboBox" id="combobox1">
+                  <object class="GtkComboBox" id="format_combo">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="model">liststore2</property>
@@ -392,8 +392,8 @@
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="adjustment">adjustment1</property>
-                    <property name="round_digits">0</property>
-                    <property name="digits">0</property>
+                    <property name="round_digits">2</property>
+                    <property name="digits">2</property>
                   </object>
                 </child>
                 <child type="tab">
@@ -451,7 +451,7 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="use_stock">True</property>
-                    <signal name="clicked" handler="ex_code" swapped="no"/>
+                    <signal name="clicked" handler="do_it" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">False</property>
