@@ -45,7 +45,7 @@ class BatchCodeExec:
         code = code_buffer.get_text(
             code_buffer.get_start_iter(), code_buffer.get_end_iter())
         self.base[key] = {'descr':descr, 'code':code}
-        self.get_list()
+        self.get_macro_list()
 
     # Выбор формата сохранения (переключение вкладки параметров сохранения)
     # Номера элементов списка и вкладок совпадают
