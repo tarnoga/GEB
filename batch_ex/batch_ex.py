@@ -6,6 +6,7 @@ from os import path
 import pygtk
 import gtk
 from gimpfu import *
+from gtkcodebuffer import CodeBuffer, SyntaxLoader, add_syntax_path
 
 # test:
 from pdb import set_trace
@@ -18,6 +19,9 @@ class BatchCodeExec:
         self.ui = gtk.Builder()
         self.ui.add_from_file(_path+'/batch_ex.ui')
         self.ui.connect_signals(self)
+        add_syntax_path(_path)
+        buff = CodeBuffer(lang=SyntaxLoader("python"))
+        self.ui.get_object('code').set_buffer(buff)
         self.base = shelve.open(_path+'/batch_base')
         self.add_filters()
         self.get_macro_list()
@@ -131,11 +135,22 @@ class BatchCodeExec:
     def do_it(self, widget):
         self.get_code()
         filenames = self.ui.get_object('file_chooser').get_filenames()
+        self.ui.get_object('notebook2').set_current_page(2)  
+        file_count = filenames.__len__()
+        file_num = 0    
         for filename in filenames:
-            img = pdb.gimp_file_load(filename, filename) 
+            file_num += 1
+            self.ui.get_object('progress').set_fraction(
+                float(file_num)/float(file_count))
+            self.ui.get_object('current_file').set_text(filename
+                + ' ('+str(file_num)+ '/'+str(file_count)+')')
+            while gtk.events_pending():
+               gtk.main_iteration(False)                        
+            img = pdb.gimp_file_load(filename, filename)
             self.ex_code(img)   
             self.save_img(img)
-            pdb.gimp_image_delete(img)                    
+            pdb.gimp_image_delete(img)  
+        self.format_changed(self.ui.get_object('format_combo'))
 
     # Закрытие приложения
     def close_app(self, widget):
