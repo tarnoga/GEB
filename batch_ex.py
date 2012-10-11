@@ -15,15 +15,13 @@ register(
     "python_ex_code",
     "Python batch code execute",
     "Python batch code execute",
-    "Bigboots",
-    "Bigboots",
-    "2012",
+    "Bigboots", "Bigboots", "2012",
     "Batch Code Execute",
     "",
     [],
     [],
     python_ex_code,
-    menu="<Image>/My-Fu/") 
+    menu="<Image>/Filters/") 
 
 
 main()   
