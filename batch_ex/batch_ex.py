@@ -42,6 +42,34 @@ class BatchCodeExec:
         self.code = code_buffer.get_text(code_buffer.get_start_iter(),
             code_buffer.get_end_iter())     
 
+    #Выполнение кода (используется переменная img)
+    def _ex_code(self, img):
+        try:
+            exec(self.code)
+        except Exception, error:
+            self._alert(str(error)) 
+
+    #Сохранение файла
+    def _save_img(self, img):
+        if img.layers.__len__() > 1:
+            pdb.gimp_image_flatten(img)
+        layer = img.layers[0]
+        root_filename = path.splitext(path.basename(img.filename))[0]
+        format = self.ui.get_object('format_combo').get_active()
+        filename = path.join(
+            self.ui.get_object('dir_select').get_filename(),
+            path.splitext(path.basename(img.filename))[0] \
+            + ('.jpg', '.tif')[format])
+        #JPG
+        if format == 0:
+            compress = self.ui.get_object('hscale1').get_value()
+            pdb.file_jpeg_save(img, layer, filename, filename, compress,
+                0, 0, 0, "Resized", 1, 0, 0, 2)
+        #TIFF
+        elif format == 1:
+            compress = int(self.ui.get_object('checkbutton1').get_active())
+            pdb.file_tiff_save(img, layer, filename, filename, compress)
+
     #Заполнение списка
     def _get_macro_list(self):
         macro_list = self.ui.get_object('liststore1')
@@ -102,6 +130,7 @@ class BatchCodeExec:
         code = code_buffer.get_text(
             code_buffer.get_start_iter(), code_buffer.get_end_iter())
         self.base[self._ckey] = {'descr':descr, 'code':code}
+        self.base.sync()
         self._get_macro_list()
 
     # Выбор формата сохранения (переключение вкладки параметров сохранения)
@@ -128,38 +157,9 @@ class BatchCodeExec:
         self._get_macro_list()
         if key ==self._ckey: self._clear_editor()
 
-    #Выполнение кода (используется переменная img)
-    def ex_code(self, img):
-        try:
-            exec(self.code)
-        except Exception, error:
-            self.alert(str(error)) 
-
-    #Сохранение файла
-    def save_img(self, img):
-        if img.layers.__len__() > 1:
-            pdb.gimp_image_flatten(img)
-        layer = img.layers[0]
-        root_filename = path.splitext(path.basename(img.filename))[0]
-        format = self.ui.get_object('format_combo').get_active()
-        filename = path.join(
-            self.ui.get_object('dir_select').get_filename(),
-            path.splitext(path.basename(img.filename))[0] \
-            + ('.jpg', '.tif')[format])
-        #JPG
-        if format == 0:
-            compress = self.ui.get_object('hscale1').get_value()
-            pdb.file_jpeg_save(img, layer, filename, filename, compress,
-                0, 0, 0, "Resized", 1, 0, 0, 2)
-        #TIFF
-        elif format == 1:
-            compress = int(self.ui.get_object('checkbutton1').get_active())
-            pdb.file_tiff_save(img, layer, filename, filename, compress)
-
     #По кнопке Ok: получение файлов, цикл по ним
     def do_it(self, widget):
-        set_trace()
-        self.get_code()
+        self._get_code()
         filenames = self.ui.get_object('file_chooser').get_filenames()
         self.ui.get_object('notebook2').set_current_page(2)  
         file_count = filenames.__len__()
@@ -173,8 +173,8 @@ class BatchCodeExec:
             while gtk.events_pending():
                gtk.main_iteration(False)                        
             img = pdb.gimp_file_load(filename, filename)
-            self.ex_code(img)   
-            self.save_img(img)
+            self._ex_code(img)   
+            self._save_img(img)
             pdb.gimp_image_delete(img)  
         self.format_changed(self.ui.get_object('format_combo'))
 
