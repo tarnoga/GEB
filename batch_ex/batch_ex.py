@@ -7,6 +7,7 @@ import pygtk
 import gtk
 from gimpfu import *
 from gtkcodebuffer import CodeBuffer, SyntaxLoader, add_syntax_path
+import pango
 
 # test:
 from pdb import set_trace
@@ -14,19 +15,48 @@ from pdb import set_trace
 
 # self._ckey - ключ текущего фрагмента
 class BatchCodeExec:
-
+       
     def __init__(self):
         _path = path.dirname(sys.modules[self.__module__].__file__)
+
         self.ui = gtk.Builder()
         self.ui.add_from_file(_path+'/batch_ex.ui')
         self.ui.connect_signals(self)
+        self.status = self.ui.get_object('status')
+
         add_syntax_path(_path)
         buff = CodeBuffer(lang=SyntaxLoader("python"))
         self.ui.get_object('code').set_buffer(buff)
+        buff.connect('changed', self.code_changed)
+
         self.base = shelve.open(_path+'/batch_base')
         self._add_filters()
         self._get_macro_list()
         self._ckey = ""
+        #colors
+        self.red_color = pango.AttrList()
+        self.red_color.insert(pango.AttrForeground(65535, 0, 0, 0, -1))
+        self.red_color.insert(pango.AttrWeight(pango.WEIGHT_HEAVY, 0, -1))
+        self.green_color = pango.AttrList()
+        self.green_color.insert(pango.AttrForeground(0, 65535, 0, 0, -1))        
+        self.green_color.insert(pango.AttrWeight(pango.WEIGHT_HEAVY, 0, -1))
+        self.blue_color = pango.AttrList()
+        self.blue_color.insert(pango.AttrForeground(0, 0, 65535, 0, -1)) 
+        self.blue_color.insert(pango.AttrWeight(pango.WEIGHT_HEAVY, 0, -1))
+
+        self._set_status("New")
+
+    #Изменение статуса редактора
+    def _set_status(self, status):
+        if status == 'New':
+            self.status.set_attributes(self.blue_color);
+        elif status == 'Saved':
+            self.status.set_attributes(self.green_color);
+        elif status == 'Edited':
+            self.status.set_attributes(self.blue_color);
+        else:
+            return
+        self.status.set_text(status)
 
     # Предупреждающее сообщение
     def _alert(self, mtext):
@@ -81,9 +111,9 @@ class BatchCodeExec:
     #Сброс редактора и текущего фрагмента
     def _clear_editor(self):
         self._ckey = ''
-        self.ui.get_object('entry_key').set_text('')
         self.ui.get_object('entry_descr').set_text('')
         self.ui.get_object('code').get_buffer().set_text('')
+        self._set_status('New')
 
     #Добавление фильтров
     def _add_filters(self):
@@ -113,6 +143,16 @@ class BatchCodeExec:
         else:
             return '00000'
 
+    #Код в редакторе изменен
+    def code_changed(self, widget):
+        if self.status.get_text()=='Saved':
+            self._set_status('Edited')
+
+    def key_press(self, widget, event):
+        if (event.state & gtk.gdk.CONTROL_MASK)\
+        and gtk.gdk.keyval_name(event.keyval) == 's':
+            self.code_save(widget)
+
     #Новый фрагмент
     def create_fragment(self, widget):
         self._clear_editor()
@@ -124,11 +164,15 @@ class BatchCodeExec:
 
     # Сохранение отредактированного кода
     def code_save(self, widget):
-        if self._ckey == '': self._ckey = self._keygen()
         descr = self.ui.get_object('entry_descr').get_text()
+        if descr == '':
+            self._alert('Enter title!')
+            return
+        if self._ckey == '': self._ckey = self._keygen()        
         code_buffer = self.ui.get_object('code').get_buffer()
         code = code_buffer.get_text(
             code_buffer.get_start_iter(), code_buffer.get_end_iter())
+        self._set_status('Saved')
         self.base[self._ckey] = {'descr':descr, 'code':code}
         self.base.sync()
         self._get_macro_list()
@@ -141,11 +185,11 @@ class BatchCodeExec:
     #Выбор фрагмента кода
     def select_fragment(self, widget, tree_path, column):
         self._ckey = widget.get_model()[tree_path][0]
-        self.ui.get_object('entry_key').set_text(self._ckey)
         self.ui.get_object('entry_descr').set_text(self.base[self._ckey]['descr'])
         self.ui.get_object('code').\
             get_buffer().set_text(self.base[self._ckey]['code'])
-        self.ui.get_object('notebook1').set_current_page(2)   
+        self.ui.get_object('notebook1').set_current_page(2) 
+        self._set_status('Saved')  
 
     #Удалить фрагмент
     def delete_fragment(self, widget):
@@ -159,6 +203,7 @@ class BatchCodeExec:
 
     #По кнопке Ok: получение файлов, цикл по ним
     def do_it(self, widget):
+        set_trace()
         self._get_code()
         filenames = self.ui.get_object('file_chooser').get_filenames()
         self.ui.get_object('notebook2').set_current_page(2)  
