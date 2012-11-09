@@ -90,6 +90,10 @@ class BatchCodeExec:
         #Меню функций PDB
         pdb_menuitem = gtk.MenuItem('PDB')
         pdb_menu = gtk.Menu()
+        browser_item = gtk.MenuItem("Browser")
+        browser_item.connect('activate', self.show_browser)
+        pdb_menu.add(browser_item)
+        browser_item.show()
         for item in self.config.options('Menu'):           
             menuitem = gtk.MenuItem(item)
             submenu = gtk.Menu()
@@ -144,7 +148,16 @@ class BatchCodeExec:
             gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR, 
             gtk.BUTTONS_CLOSE, str(mtext))
         em.run()
-        em.destroy()     
+        em.destroy() 
+
+    #Show PDB Browser
+    def show_browser(self, widget):
+        self.ui.get_object('pdb_window').show_all()  
+
+    #Hide PDB Brower
+    def hide_browser(self, widget, event):
+        widget.hide()
+        return True      
 
     #Получение кода (self.code)
     def _get_code(self):
@@ -236,6 +249,25 @@ class BatchCodeExec:
         if self.status.get_text()=='Saved':
             self._set_status('Edited')
 
+    #Mask changed
+    def mask_changed(self, widget):
+        function_list = self.ui.get_object('liststore3')
+        function_list.clear()
+        query_mask = widget.get_text()
+        pdb_list = pdb.query(query_mask)  
+        pdb_list.sort()     
+        for funcname in pdb_list:
+            list_iter = function_list.append(None)
+            function_list[list_iter] = (funcname, )
+
+    #PDB Browser cursor changed
+    def pdb_cursor(self, widget):
+        function = self.ui.get_object('liststore3')[widget.get_cursor()[0]][0]
+        pdb_proc = pdb[function]
+        self.ui.get_object('pdb_buffer').set_text(pdb_proc.proc_blurb)
+
+
+    #key press (Enter, Save etc)
     def key_press(self, widget, event):
         if widget == self.ui.get_object('entry_descr')\
         and gtk.gdk.keyval_name(event.keyval) == 'Return':
