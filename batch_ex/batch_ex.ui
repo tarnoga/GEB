@@ -9,6 +9,16 @@
     <property name="step_increment">0.01</property>
     <property name="page_increment">0.10000000000000001</property>
   </object>
+  <object class="GtkImage" id="image1">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-ok</property>
+  </object>
+  <object class="GtkImage" id="image2">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-ok</property>
+  </object>
   <object class="GtkListStore" id="liststore1">
     <columns>
       <!-- column-name id -->
@@ -567,20 +577,37 @@
               <object class="GtkHButtonBox" id="hbuttonbox4">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="layout_style">spread</property>
                 <child>
                   <object class="GtkButton" id="button6">
-                    <property name="label">gtk-ok</property>
+                    <property name="label">Selected images</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
-                    <property name="use_stock">True</property>
-                    <signal name="clicked" handler="do_it" swapped="no"/>
+                    <property name="image">image1</property>
+                    <signal name="clicked" handler="do_selected" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">False</property>
                     <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="button9">
+                    <property name="label" translatable="yes">Opened images</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <property name="use_action_appearance">False</property>
+                    <property name="image">image2</property>
+                    <signal name="clicked" handler="do_opened" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
+                    <property name="position">1</property>
                   </packing>
                 </child>
               </object>

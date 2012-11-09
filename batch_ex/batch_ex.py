@@ -292,8 +292,8 @@ class BatchCodeExec:
         self._get_macro_list()
         if key ==self._ckey: self._clear_editor()
 
-    #По кнопке Ok: получение файлов, цикл по ним
-    def do_it(self, widget):
+    #По кнопке "Selected images": получение файлов, цикл по ним
+    def do_selected(self, widget):
         self._get_code()
         filenames = self.ui.get_object('file_chooser').get_filenames()
         self.ui.get_object('notebook2').set_current_page(3)  
@@ -312,6 +312,24 @@ class BatchCodeExec:
             self._save_img(image)
             pdb.gimp_image_delete(image)  
         self.format_changed(self.ui.get_object('format_combo'))
+
+    #По кнопке "Opened images": цикл по открытым файлам
+    def do_opened(self, widget):
+        self._get_code()
+        image_list = gimp.image_list()
+        count = image_list.__len__()
+        num = 0
+        for image in image_list:
+            self.ui.get_object('progress').set_fraction(
+                float(num)/float(count))
+            self.ui.get_object('current_file').set_text(
+                path.basename(image.filename)
+                + ' ('+str(num)+ '/'+str(count)+')')
+            while gtk.events_pending():
+               gtk.main_iteration(False)  
+            pdb.gimp_image_undo_group_start(image)
+            self._ex_code(image)             
+            pdb.gimp_image_undo_group_end(image)
 
     # Закрытие приложения
     def close_app(self, widget):
