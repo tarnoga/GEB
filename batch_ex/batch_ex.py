@@ -6,9 +6,13 @@ from os import path
 import pygtk
 import gtk
 from gimpfu import *
+import gimpui
 from gtkcodebuffer import CodeBuffer, SyntaxLoader, add_syntax_path
 import pango
 from ConfigParser import ConfigParser
+
+t = gettext.translation('gimp20-python', gimp.locale_directory, fallback=True)
+_ = t.ugettext
 
 # test:
 from pdb import set_trace
@@ -44,6 +48,7 @@ class BatchCodeExec:
         self.base = shelve.open(_path+'/batch_base')
         self._get_macro_list()
         self._ckey = ""
+        self.browse_dlg = None
         #Menu
         self._create_menu()
 
@@ -149,15 +154,6 @@ class BatchCodeExec:
         em.run()
         em.destroy() 
 
-    #Show PDB Browser
-    def show_browser(self, widget):
-        self.ui.get_object('pdb_window').show_all()  
-
-    #Hide PDB Brower
-    def hide_browser(self, widget, event):
-        widget.hide()
-        return True      
-
     #Получение кода (self.code)
     def _get_code(self):
         code_buffer = self.ui.get_object('code').get_buffer()
@@ -218,6 +214,64 @@ class BatchCodeExec:
         else:
             return '00000'
 
+    def browse_response(self, dlg, response_id):
+        if response_id != gtk.RESPONSE_APPLY:
+            dlg.hide()
+            return
+
+        proc_name = dlg.get_selected()
+
+        if not proc_name:
+            return
+
+        proc = pdb[proc_name]
+
+        cmd = ''
+
+        if len(proc.return_vals) > 0:
+            cmd = ', '.join([x[1].replace('-', '_')
+                            for x in proc.return_vals]) + ' = '
+
+        cmd = cmd + 'pdb.%s' % proc.proc_name.replace('-', '_')
+
+        if len(proc.params) > 0 and proc.params[0][1] == 'run-mode':
+            params = proc.params[1:]
+        else:
+            params = proc.params
+
+        cmd = cmd + '(%s)' % ', '.join([x[1].replace('-', '_')
+                                       for x in params])
+
+        self.add_code(None, cmd)
+        self.ui.get_object('root_window').present()
+        self.ui.get_object('code').grab_focus()
+
+    def show_browser(self, widget):
+        if not self.browse_dlg:
+            dlg = gimpui.ProcBrowserDialog(_("Python Procedure Browser"),
+                                           role='gimp_exec_batch',
+                                           buttons=(gtk.STOCK_APPLY,
+                                                    gtk.RESPONSE_APPLY,
+                                                    gtk.STOCK_CLOSE,
+                                                    gtk.RESPONSE_CLOSE))
+
+            dlg.set_default_response(gtk.RESPONSE_APPLY)
+            dlg.set_alternative_button_order((gtk.RESPONSE_CLOSE,
+                                              gtk.RESPONSE_APPLY))
+
+            dlg.connect('response', self.browse_response)
+            dlg.connect('row-activated',
+                        lambda dlg: dlg.response(gtk.RESPONSE_APPLY))
+
+            self.browse_dlg = dlg
+
+        self.browse_dlg.present() 
+
+    #Hide PDB Brower
+    def hide_browser(self, widget, event):
+        widget.hide()
+        return True                  
+
     #Выбор процедуры из меню
     def add_code(self, widget, insert_code):
         code_buffer = self.ui.get_object('code').get_buffer()
@@ -248,6 +302,7 @@ class BatchCodeExec:
         filter.add_pattern("*.[tT][iI][fF]")
         filter.add_pattern("*.[xX][pP][mM]")
         add_dialog.add_filter(filter) 
+        add_dialog.set_filter(filter) 
 
         response = add_dialog.run()
         if response == gtk.RESPONSE_OK:
@@ -282,6 +337,17 @@ class BatchCodeExec:
         pdb_proc = pdb[function]
         self.ui.get_object('pdb_buffer').set_text(pdb_proc.proc_blurb)
 
+    #PDB Browser function select
+    def pdb_select(self, widget, tree_path, column):
+        function_name = widget.get_model()[tree_path][0]
+        try:
+            function = pdb[function_name]
+        except Exception, e:
+            return
+        self.add_code(widget, function_name +'(' + reduce(lambda res,x: res+x[1]+', ',\
+            function.params, '')[:-2] + ')')
+        self.ui.get_object('root_window').present()
+        self.ui.get_object('code').grab_focus()
 
     #key press (Enter, Save etc)
     def key_press(self, widget, event):
