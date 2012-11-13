@@ -42,7 +42,6 @@ class BatchCodeExec:
         buff.connect('changed', self.code_changed)
 
         self.base = shelve.open(_path+'/batch_base')
-        self._add_filters()
         self._get_macro_list()
         self._ckey = ""
         #Menu
@@ -211,26 +210,6 @@ class BatchCodeExec:
         self.ui.get_object('code').get_buffer().set_text('')
         self._set_status('New')
 
-    #Добавление фильтров
-    def _add_filters(self):
-        file_chooser = self.ui.get_object('file_chooser')
-
-        filter = gtk.FileFilter()
-        filter.set_name("All files")
-        filter.add_pattern("*")
-        file_chooser.add_filter(filter)
-
-        filter = gtk.FileFilter()
-        filter.set_name("Images")
-        filter.add_mime_type("image/png")
-        filter.add_mime_type("image/jpeg")
-        filter.add_mime_type("image/gif")
-        filter.add_pattern("*.[pP][nN][gG]")
-        filter.add_pattern("*.[jJ][pP][gG]")
-        filter.add_pattern("*.[gG][iI][fF]")
-        filter.add_pattern("*.[tT][iI][fF]")
-        filter.add_pattern("*.[xX][pP][mM]")
-        file_chooser.add_filter(filter)  
 
     #Генератор ключей
     def _keygen(self):
@@ -243,6 +222,43 @@ class BatchCodeExec:
     def add_code(self, widget, insert_code):
         code_buffer = self.ui.get_object('code').get_buffer()
         code_buffer.insert_at_cursor(insert_code)
+
+    #Add files to filelist
+    def run_chooser(self, widget):
+        add_dialog = gtk.FileChooserDialog("Add files..", None,
+            gtk.FILE_CHOOSER_ACTION_OPEN,
+            (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
+            gtk.STOCK_OPEN, gtk.RESPONSE_OK))
+        add_dialog.set_default_response(gtk.RESPONSE_OK)
+        add_dialog.set_select_multiple(True)
+
+        filter = gtk.FileFilter()
+        filter.set_name("All files")
+        filter.add_pattern("*")
+        add_dialog.add_filter(filter)
+
+        filter = gtk.FileFilter()
+        filter.set_name("Images")
+        filter.add_mime_type("image/png")
+        filter.add_mime_type("image/jpeg")
+        filter.add_mime_type("image/gif")
+        filter.add_pattern("*.[pP][nN][gG]")
+        filter.add_pattern("*.[jJ][pP][gG]")
+        filter.add_pattern("*.[gG][iI][fF]")
+        filter.add_pattern("*.[tT][iI][fF]")
+        filter.add_pattern("*.[xX][pP][mM]")
+        add_dialog.add_filter(filter) 
+
+        response = add_dialog.run()
+        if response == gtk.RESPONSE_OK:
+            add_files = add_dialog.get_filenames()
+            file_store = self.ui.get_object('liststore4')
+            file_list = (x[0] for x in file_store)
+            for filename in add_files:
+                if filename not in file_list:
+                    list_iter = file_store.append(None)
+                    file_store[list_iter] = (filename, )          
+        add_dialog.destroy()
 
     #Код в редакторе изменен
     def code_changed(self, widget):
@@ -327,7 +343,7 @@ class BatchCodeExec:
     #По кнопке "Selected images": получение файлов, цикл по ним
     def do_selected(self, widget):
         self._get_code()
-        filenames = self.ui.get_object('file_chooser').get_filenames()
+        filenames = (x[0] for x in self.ui.get_object('liststore4'))        
         self.ui.get_object('notebook2').set_current_page(3)  
         file_count = filenames.__len__()
         file_num = 0    
