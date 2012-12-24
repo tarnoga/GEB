@@ -17,14 +17,34 @@ _ = t.ugettext
 # test:
 from pdb import set_trace
 
+PAR_TYPES = ('INT32',
+            'INT18',
+            'INT8',
+            'FLOAT',
+            'STRING',
+            'INT32ARRAY',
+            'INT16ARRAY',
+            'INT8ARRAY',
+            'FLOATARRAY',
+            'STRINGARRAY',
+            'COLOR',
+            'ITEM',
+            'DISRLAY',
+            'IMAGE',
+            'LAYER',
+            'CHANNEL',
+            'DRAWABLE',
+            'SELECTION',
+            '',
+            'VECTORS')
 
-# self._ckey - ключ текущего фрагмента
+# self._ckey - current fragment key
 class BatchCodeExec:
        
     def __init__(self):
         _path = path.dirname(sys.modules[self.__module__].__file__)
 
-        _conf_filename = _path + '/config'
+        _conf_filename = '%s/config' %_path
         _conf_dict = {
             'Menu': {'Layer': 'gimp-layer*'},
             'Templates': {'Get first layer': 'layer = image.layers[0]'}
@@ -36,7 +56,7 @@ class BatchCodeExec:
         self._check_conf(_conf_filename, _conf_dict)       
 
         self.ui = gtk.Builder()
-        self.ui.add_from_file(_path+'/batch_ex.ui')
+        self.ui.add_from_file('%s/batch_ex.ui' %_path)
         self.ui.connect_signals(self)
         self.status = self.ui.get_object('status')
 
@@ -45,14 +65,14 @@ class BatchCodeExec:
         self.ui.get_object('code').set_buffer(buff)
         buff.connect('changed', self.code_changed)
 
-        self.base = shelve.open(_path+'/batch_base')
+        self.base = shelve.open('%s/batch_base' %_path)
         self._get_macro_list()
         self._ckey = ""
         self.browse_dlg = None
-        #Menu
+        # Menu
         self._create_menu()
 
-        #colors
+        # colors
         self.red_color = pango.AttrList()
         self.red_color.insert(pango.AttrForeground(65535, 0, 0, 0, -1))
         self.red_color.insert(pango.AttrWeight(pango.WEIGHT_HEAVY, 0, -1))
@@ -64,8 +84,9 @@ class BatchCodeExec:
         self.blue_color.insert(pango.AttrWeight(pango.WEIGHT_HEAVY, 0, -1))
 
         self._set_status("New")
+        self.format_changed(self.ui.get_object('format_combo'))
 
-    #Create config file
+    # Create config file
     def _create_conf_file(self, filename, conf_dict):
         config = ConfigParser()
         sections = conf_dict.keys()
@@ -76,7 +97,7 @@ class BatchCodeExec:
                 config.set(section, option, conf_dict[section][option])
         config.write(open(filename,'w'))     
 
-    #Check and fix config
+    # Check and fix config
     def _check_conf(self, filename, conf_dict):
         sections = conf_dict.keys()
         sections.sort()
@@ -87,41 +108,22 @@ class BatchCodeExec:
                     self.config.set(section, option, conf_dict[section][option])
         self.config.write(open(filename,'w'))            
   
-    #Меню редактора
+    # Editor menu
     def _create_menu(self):
         menu = self.ui.get_object('code_menu')
 
-        #Меню функций PDB
+        # PDB function menu
         pdb_menuitem = gtk.MenuItem('PDB')
         pdb_menu = gtk.Menu()
-        browser_item = gtk.MenuItem("Browser")
+        browser_item = gtk.MenuItem(_("PDB Browser"))
         browser_item.connect('activate', self.show_browser)
         pdb_menu.add(browser_item)
         browser_item.show()
-        for item in self.config.options('Menu'):           
-            menuitem = gtk.MenuItem(item)
-            submenu = gtk.Menu()
-            pdb_list = pdb.query(self.config.get('Menu', item))
-            pdb_list.sort()
-            for pdb_item in pdb_list:
-                pdb_proc = pdb[pdb_item]
-                submenu_item = gtk.MenuItem(pdb_item)
-                submenu_item.set_tooltip_markup(
-                    '<b>' + pdb_proc.proc_blurb + '</b>\n'\
-                    + pdb_proc.proc_help)
-                submenu.append(submenu_item)
-                submenu_item.connect('activate', self.add_code, pdb_item +\
-                    '(' + reduce(lambda res,x: res+x[1]+', ',\
-                    pdb_proc.params, '')[:-2] + ')')
-                submenu_item.show()
-            menuitem.set_submenu(submenu)
-            pdb_menu.add(menuitem)
-            menuitem.show()
         pdb_menuitem.set_submenu(pdb_menu)
         menu.add(pdb_menuitem)
         pdb_menuitem.show()
 
-        #Меню шаблонов
+        # Templates menu
         template_menuitem = gtk.MenuItem('Templates')
         template_menu = gtk.Menu()
         for item in self.config.options('Templates'):           
@@ -132,9 +134,22 @@ class BatchCodeExec:
             submenu_item.show()               
         template_menuitem.set_submenu(template_menu)
         menu.add(template_menuitem)
-        template_menuitem.show()        
+        template_menuitem.show() 
 
-    #Изменение статуса редактора
+        # Settings menu
+        settings_menuitem = gtk.MenuItem('Settings')
+        settings_menu = gtk.Menu()
+
+        # PDB function arguments
+        self.args = gtk.CheckMenuItem('PDB arguments')
+        settings_menu.append(self.args)
+        self.args.show()      
+
+        settings_menuitem.set_submenu(settings_menu)
+        menu.add(settings_menuitem)
+        settings_menuitem.show()                
+
+    # Editor status change
     def _set_status(self, status):
         if status == 'New':
             self.status.set_attributes(self.blue_color);
@@ -146,7 +161,7 @@ class BatchCodeExec:
             return
         self.status.set_text(status)
 
-    # Предупреждающее сообщение
+    # Alert message
     def _alert(self, mtext):
         em = gtk.MessageDialog(self.ui.get_object('root_window'), 
             gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR, 
@@ -154,20 +169,20 @@ class BatchCodeExec:
         em.run()
         em.destroy() 
 
-    #Получение кода (self.code)
+    # Get code (self.code)
     def _get_code(self):
         code_buffer = self.ui.get_object('code').get_buffer()
         self.code = code_buffer.get_text(code_buffer.get_start_iter(),
             code_buffer.get_end_iter())     
 
-    #Выполнение кода (используется переменная image)
+    #Code execution (use variable "image")
     def _ex_code(self, image):
         try:
             exec(self.code)
         except Exception, error:
             self._alert(str(error)) 
 
-    #Сохранение файла
+    #File save
     def _save_img(self, img):
         format = self.ui.get_object('format_combo').get_active()        
         if (format != 2) and (img.layers.__len__() > 1):
@@ -177,12 +192,12 @@ class BatchCodeExec:
         filename = path.join(
             self.ui.get_object('dir_select').get_filename(),
             path.splitext(path.basename(img.filename))[0] \
-            + ('.jpg', '.tif', '.xcf')[format])
+            + ('.jpg', '.tif', '.xcf', '.bmp')[format])
         #JPG
         if format == 0:
             compress = self.ui.get_object('hscale1').get_value()
             pdb.file_jpeg_save(img, layer, filename, filename, compress,
-                0, 0, 0, "Resized", 1, 0, 0, 2)
+                0, 0, 0, "GEB", 1, 0, 0, 2)
         #TIFF
         elif format == 1:
             compress = int(self.ui.get_object('checkbutton1').get_active())
@@ -190,8 +205,10 @@ class BatchCodeExec:
         #XCF
         elif format == 2:
             pdb.gimp_xcf_save(0, img, layer, filename, filename)
+        elif format == 3:
+            pdb.file_bmp_save(img, layer, filename, filename)
 
-    #Заполнение списка
+    # Fill fragments list
     def _get_macro_list(self):
         macro_list = self.ui.get_object('liststore1')
         macro_list.clear()
@@ -199,7 +216,7 @@ class BatchCodeExec:
             list_iter = macro_list.append(None)
             macro_list[list_iter] = (key, self.base[key]['descr'])
 
-    #Сброс редактора и текущего фрагмента
+    # Reset editor and current fragment
     def _clear_editor(self):
         self._ckey = ''
         self.ui.get_object('entry_descr').set_text('')
@@ -207,41 +224,87 @@ class BatchCodeExec:
         self._set_status('New')
 
 
-    #Генератор ключей
+    # Key generator
     def _keygen(self):
         if self.base.keys():
             return '%05d' %(int(sorted(self.base.keys())[-1])+1)
         else:
             return '00000'
 
+    # Get PDB procedure with user arguments
+    def get_pdb_args(self, proc, params):
+        proc_cmd = ''
+        if len(proc.return_vals) > 0:
+            proc_cmd = ', '.join([x[1].replace('-', '_')
+                                 for x in proc.return_vals]) + ' = '
+        proc_name = proc.proc_name.replace('-', '_')
+        proc_cmd = proc_cmd + 'pdb.%s' % proc_name
+
+        if params.__len__() == 0:
+            return proc_cmd
+
+        dialog = gtk.Dialog(proc_name, self.browse_dlg, 0,
+                            (gtk.STOCK_OK, gtk.RESPONSE_OK,
+                             gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL))
+
+        table = gtk.Table(params.__len__(), 2)
+        table.set_row_spacings(4)
+        table.set_col_spacings(4)
+        dialog.vbox.pack_start(table, True, True, 0)
+
+        t_row = 0
+        entrs = []
+
+        for param in params:
+            label = gtk.Label(str(param[1]))
+            table.attach(label, 0, 1, t_row, t_row+1)
+            entr = gtk.Entry()
+            entr.set_text(str(param[1]))
+            entr.set_tooltip_markup('<b>%s</b>\n<i>%s</i>\n%s'\
+                                    %(param[1], PAR_TYPES[param[0]], param[2]))
+            table.attach(entr, 1, 2, t_row, t_row+1)
+            label.set_mnemonic_widget(entr)
+            t_row += 1
+            entrs.append(entr)
+
+        dialog.show_all()
+
+        response = dialog.run()
+
+        if response == gtk.RESPONSE_OK:
+            proc_cmd += '(%s)' % ', '.join([x.get_text().replace('-', '_')
+                                           for x in entrs])
+        else:
+            proc_cmd = ''
+
+        dialog.destroy()
+        return proc_cmd
+
+    # PDB Browser response
     def browse_response(self, dlg, response_id):
         if response_id != gtk.RESPONSE_APPLY:
             dlg.hide()
             return
-
         proc_name = dlg.get_selected()
 
         if not proc_name:
             return
-
         proc = pdb[proc_name]
-
-        cmd = ''
-
-        if len(proc.return_vals) > 0:
-            cmd = ', '.join([x[1].replace('-', '_')
-                            for x in proc.return_vals]) + ' = '
-
-        cmd = cmd + 'pdb.%s' % proc.proc_name.replace('-', '_')
-
-        if len(proc.params) > 0 and proc.params[0][1] == 'run-mode':
+        if proc.params.__len__() > 0 and proc.params[0][1] == 'run-mode':
             params = proc.params[1:]
         else:
-            params = proc.params
+            params = proc.params        
+        cmd = ''
 
-        cmd = cmd + '(%s)' % ', '.join([x[1].replace('-', '_')
-                                       for x in params])
-
+        if self.args.get_active():
+            cmd = cmd + self.get_pdb_args(proc, params)
+        else:
+            if len(proc.return_vals) > 0:
+                cmd = ', '.join([x[1].replace('-', '_')
+                                for x in proc.return_vals]) + ' = '
+            cmd = cmd + 'pdb.%s' % proc.proc_name.replace('-', '_')
+            cmd = cmd + '(%s)' % ', '.join([x[1].replace('-', '_')
+                                           for x in params])
         self.add_code(None, cmd)
         self.ui.get_object('root_window').present()
         self.ui.get_object('code').grab_focus()
@@ -254,30 +317,27 @@ class BatchCodeExec:
                                                     gtk.RESPONSE_APPLY,
                                                     gtk.STOCK_CLOSE,
                                                     gtk.RESPONSE_CLOSE))
-
             dlg.set_default_response(gtk.RESPONSE_APPLY)
             dlg.set_alternative_button_order((gtk.RESPONSE_CLOSE,
                                               gtk.RESPONSE_APPLY))
-
             dlg.connect('response', self.browse_response)
             dlg.connect('row-activated',
                         lambda dlg: dlg.response(gtk.RESPONSE_APPLY))
-
             self.browse_dlg = dlg
 
         self.browse_dlg.present() 
 
-    #Hide PDB Brower
+    # Hide PDB Brower
     def hide_browser(self, widget, event):
         widget.hide()
         return True                  
 
-    #Выбор процедуры из меню
+    # Code insert
     def add_code(self, widget, insert_code):
         code_buffer = self.ui.get_object('code').get_buffer()
         code_buffer.insert_at_cursor(insert_code)
 
-    #Add files to filelist
+    # Add files to filelist
     def run_chooser(self, widget):
         add_dialog = gtk.FileChooserDialog("Add files..", None,
             gtk.FILE_CHOOSER_ACTION_OPEN,
@@ -315,41 +375,12 @@ class BatchCodeExec:
                     file_store[list_iter] = (filename, )          
         add_dialog.destroy()
 
-    #Код в редакторе изменен
+    # Change code in editor
     def code_changed(self, widget):
-        if self.status.get_text()=='Saved':
+        if self.status.get_text() == 'Saved':
             self._set_status('Edited')
 
-    #Mask changed
-    def mask_changed(self, widget):
-        function_list = self.ui.get_object('liststore3')
-        function_list.clear()
-        query_mask = widget.get_text()
-        pdb_list = pdb.query(query_mask)  
-        pdb_list.sort()     
-        for funcname in pdb_list:
-            list_iter = function_list.append(None)
-            function_list[list_iter] = (funcname, )
-
-    #PDB Browser cursor changed
-    def pdb_cursor(self, widget):
-        function = self.ui.get_object('liststore3')[widget.get_cursor()[0]][0]
-        pdb_proc = pdb[function]
-        self.ui.get_object('pdb_buffer').set_text(pdb_proc.proc_blurb)
-
-    #PDB Browser function select
-    def pdb_select(self, widget, tree_path, column):
-        function_name = widget.get_model()[tree_path][0]
-        try:
-            function = pdb[function_name]
-        except Exception, e:
-            return
-        self.add_code(widget, function_name +'(' + reduce(lambda res,x: res+x[1]+', ',\
-            function.params, '')[:-2] + ')')
-        self.ui.get_object('root_window').present()
-        self.ui.get_object('code').grab_focus()
-
-    #key press (Enter, Save etc)
+    # key press (Enter, Save etc)
     def key_press(self, widget, event):
         if widget == self.ui.get_object('entry_descr')\
         and gtk.gdk.keyval_name(event.keyval) == 'Return':
@@ -358,16 +389,16 @@ class BatchCodeExec:
         and gtk.gdk.keyval_name(event.keyval) == 's':
             self.code_save(widget)
 
-    #Новый фрагмент
+    # New fragment
     def create_fragment(self, widget):
         self._clear_editor()
         self.ui.get_object('notebook1').set_current_page(2)   
 
-    # Движение вперед по вкладкам по кнопке "Вперед"    
+    # Next page  
     def click_forward(self, widget): 
         self.ui.get_object('notebook1').next_page()
 
-    # Сохранение отредактированного кода
+    # Save edited code
     def code_save(self, widget):
         descr = self.ui.get_object('entry_descr').get_text()
         if descr == '':
@@ -382,21 +413,21 @@ class BatchCodeExec:
         self.base.sync()
         self._get_macro_list()
 
-    # Выбор формата сохранения (переключение вкладки параметров сохранения)
-    # Номера элементов списка и вкладок совпадают
+    # Select format
     def format_changed(self, widget):
-        self.ui.get_object('notebook2').set_current_page(widget.get_active())
+        self.ui.get_object('notebook2').set_current_page(widget.get_active()+1)
 
-    #Выбор фрагмента кода
+    # Select code fragment
     def select_fragment(self, widget, tree_path, column):
         self._ckey = widget.get_model()[tree_path][0]
-        self.ui.get_object('entry_descr').set_text(self.base[self._ckey]['descr'])
+        self.ui.get_object('entry_descr').set_text(
+            self.base[self._ckey]['descr'])
         self.ui.get_object('code').\
             get_buffer().set_text(self.base[self._ckey]['code'])
         self.ui.get_object('notebook1').set_current_page(2) 
         self._set_status('Saved')  
 
-    #Удалить фрагмент
+    # Delete fragment
     def delete_fragment(self, widget):
         macro_list, sel_iter =\
             self.ui.get_object('treeview1').get_selection().get_selected()
@@ -406,19 +437,19 @@ class BatchCodeExec:
         self._get_macro_list()
         if key ==self._ckey: self._clear_editor()
 
-    #По кнопке "Selected images": получение файлов, цикл по ним
+    # Execution code for selected images
     def do_selected(self, widget):
         self._get_code()
-        filenames = (x[0] for x in self.ui.get_object('liststore4'))        
-        self.ui.get_object('notebook2').set_current_page(3)  
+        filenames = [x[0] for x in self.ui.get_object('liststore4')]
+        self.ui.get_object('notebook2').set_current_page(0)  
         file_count = filenames.__len__()
         file_num = 0    
         for filename in filenames:
             file_num += 1
             self.ui.get_object('progress').set_fraction(
                 float(file_num)/float(file_count))
-            self.ui.get_object('current_file').set_text(filename
-                + ' ('+str(file_num)+ '/'+str(file_count)+')')
+            self.ui.get_object('current_file').set_text('%s (%s/%s)'\
+                %(filename, str(file_num), str(file_count)))
             while gtk.events_pending():
                gtk.main_iteration(False)                        
             image = pdb.gimp_file_load(filename, filename)
@@ -427,25 +458,26 @@ class BatchCodeExec:
             pdb.gimp_image_delete(image)  
         self.format_changed(self.ui.get_object('format_combo'))
 
-    #По кнопке "Opened images": цикл по открытым файлам
+    # Execution code for opened images
     def do_opened(self, widget):
         self._get_code()
         image_list = gimp.image_list()
+        self.ui.get_object('notebook2').set_current_page(0) 
         count = image_list.__len__()
         num = 0
         for image in image_list:
             self.ui.get_object('progress').set_fraction(
                 float(num)/float(count))
-            self.ui.get_object('current_file').set_text(
-                path.basename(image.filename)
-                + ' ('+str(num)+ '/'+str(count)+')')
+            self.ui.get_object('current_file').set_text('%s (%s/%s)'\
+                %(path.basename(image.filename), str(num), str(count)))
             while gtk.events_pending():
                gtk.main_iteration(False)  
             pdb.gimp_image_undo_group_start(image)
             self._ex_code(image)             
             pdb.gimp_image_undo_group_end(image)
+        self.format_changed(self.ui.get_object('format_combo'))
 
-    # Закрытие приложения
+    # Close app
     def close_app(self, widget):
         self.base.close()
         gtk.main_quit()
