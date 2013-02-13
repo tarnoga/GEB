@@ -10,6 +10,8 @@ import gimpui
 from gtkcodebuffer import CodeBuffer, SyntaxLoader, add_syntax_path
 import pango
 from ConfigParser import ConfigParser
+import xml.etree.ElementTree as ET
+
 
 t = gettext.translation('gimp20-python', gimp.locale_directory, fallback=True)
 _ = t.ugettext
@@ -60,8 +62,11 @@ class BatchCodeExec:
         self.ui.connect_signals(self)
         self.status = self.ui.get_object('status')
 
+        #Check Gimp version and updade syntax file, if needed
+        self._check_syntax('%s/python-fu.xml' %_path)
+
         add_syntax_path(_path)
-        buff = CodeBuffer(lang=SyntaxLoader("python"))
+        buff = CodeBuffer(lang=SyntaxLoader("python-fu"))
         self.ui.get_object('code').set_buffer(buff)
         buff.connect('changed', self.code_changed)
 
@@ -85,6 +90,38 @@ class BatchCodeExec:
 
         self._set_status("New")
         self.format_changed(self.ui.get_object('format_combo'))
+
+    # Check Gimp version and updade syntax file, if needed
+    def _check_syntax(self, filename):
+        def indent(elem, level=0):
+            i = "\n" + level*"  "
+            if len(elem):
+                if not elem.text or not elem.text.strip():
+                    elem.text = i + "  "
+                if not elem.tail or not elem.tail.strip():
+                    elem.tail = i
+                for elem in elem:
+                    indent(elem, level+1)
+                if not elem.tail or not elem.tail.strip():
+                    elem.tail = i
+            else:
+                if level and (not elem.tail or not elem.tail.strip()):
+                    elem.tail = i        
+        syn_parser = ET.ElementTree()
+        syn_parser.parse(filename)
+        gimp_version = syn_parser.find('gimp-version')
+        if gimp_version.text == str(gimp.version):
+            return
+        gimp_version.text = str(gimp.version)
+        funclist = syn_parser.find("keywordlist[@style='function']")
+        funclist.clear()
+        funclist.attrib['style'] = 'function'
+        for key in pdb.query():
+            func_element = ET.Element('keyword')          
+            func_element.text = 'pdb.%s' %key.replace('-', '_')
+            funclist.append(func_element)
+        for top_elem in syn_parser.findall('.'): indent(top_elem)
+        syn_parser.write(filename)        
 
     # Create config file
     def _create_conf_file(self, filename, conf_dict):
