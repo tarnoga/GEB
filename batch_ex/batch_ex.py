@@ -3,18 +3,13 @@
 
 import sys, shelve
 from os import path
-import pygtk
-import gtk
+import time
+import gtk, pygtk, pango
 from gimpfu import *
 import gimpui
 from gtkcodebuffer import CodeBuffer, SyntaxLoader, add_syntax_path
-import pango
 from ConfigParser import ConfigParser
 import xml.etree.ElementTree as ET
-
-
-t = gettext.translation('gimp20-python', gimp.locale_directory, fallback=True)
-_ = t.ugettext
 
 # test:
 from pdb import set_trace
@@ -37,8 +32,12 @@ PAR_TYPES = ('INT32',
             'CHANNEL',
             'DRAWABLE',
             'SELECTION',
-            '',
             'VECTORS')
+
+ST_SAVED = _('Saved')
+ST_EDITED = _('Edited')
+ST_NEW = _('New')
+
 
 # self._ckey - current fragment key
 class BatchCodeExec:
@@ -58,6 +57,7 @@ class BatchCodeExec:
         self._check_conf(_conf_filename, _conf_dict)       
 
         self.ui = gtk.Builder()
+        self.ui.set_translation_domain('GEB')
         self.ui.add_from_file('%s/batch_ex.ui' %_path)
         self.ui.connect_signals(self)
         self.status = self.ui.get_object('status')
@@ -74,6 +74,7 @@ class BatchCodeExec:
         self._get_macro_list()
         self._ckey = ""
         self.browse_dlg = None
+
         # Menu
         self._create_menu()
 
@@ -88,8 +89,21 @@ class BatchCodeExec:
         self.blue_color.insert(pango.AttrForeground(0, 0, 65535, 0, -1)) 
         self.blue_color.insert(pango.AttrWeight(pango.WEIGHT_HEAVY, 0, -1))
 
-        self._set_status("New")
+        # Log
+        self._log = self.ui.get_object('log').get_buffer()
+        self._log.create_tag('alert', foreground='red', weight=700)
+        self._log.create_tag('ok', foreground='black')
+        self._log.create_tag('done', foreground='blue', weight=700)
+
+        self._set_status(ST_NEW)
         self.format_changed(self.ui.get_object('format_combo'))
+        self._add_log(_('GEB started!'), 'done')
+
+    # Add to log
+    def _add_log(self, message, tag='ok'):
+        timestring = time.strftime('%d.%m.%Y %H:%M:%S ', time.localtime())
+        self._log.insert_with_tags_by_name(self._log.get_end_iter(),
+            timestring + message + '\n', tag)
 
     # Check Gimp version and updade syntax file, if needed
     def _check_syntax(self, filename):
@@ -188,11 +202,11 @@ class BatchCodeExec:
 
     # Editor status change
     def _set_status(self, status):
-        if status == 'New':
+        if status == ST_NEW:
             self.status.set_attributes(self.blue_color);
-        elif status == 'Saved':
+        elif status == ST_SAVED:
             self.status.set_attributes(self.green_color);
-        elif status == 'Edited':
+        elif status == ST_EDITED:
             self.status.set_attributes(self.blue_color);
         else:
             return
@@ -217,7 +231,10 @@ class BatchCodeExec:
         try:
             exec(self.code)
         except Exception, error:
-            self._alert(str(error)) 
+            self._add_log(_('Code error: ')+str(error), 'alert')
+            self._alert(str(error))
+            return False
+        return True
 
     #File save
     def _save_img(self, img):
@@ -258,8 +275,7 @@ class BatchCodeExec:
         self._ckey = ''
         self.ui.get_object('entry_descr').set_text('')
         self.ui.get_object('code').get_buffer().set_text('')
-        self._set_status('New')
-
+        self._set_status(ST_NEW)
 
     # Key generator
     def _keygen(self):
@@ -288,7 +304,6 @@ class BatchCodeExec:
         table.set_row_spacings(4)
         table.set_col_spacings(4)
         dialog.vbox.pack_start(table, True, True, 0)
-
         t_row = 0
         entrs = []
 
@@ -305,15 +320,12 @@ class BatchCodeExec:
             entrs.append(entr)
 
         dialog.show_all()
-
         response = dialog.run()
-
         if response == gtk.RESPONSE_OK:
             proc_cmd += '(%s)' % ', '.join([x.get_text().replace('-', '_')
                                            for x in entrs])
         else:
             proc_cmd = ''
-
         dialog.destroy()
         return proc_cmd
 
@@ -374,9 +386,13 @@ class BatchCodeExec:
         code_buffer = self.ui.get_object('code').get_buffer()
         code_buffer.insert_at_cursor(insert_code)
 
+    # Clear file fils
+    def clear_filelist(self, widget):
+        self.ui.get_object('liststore4').clear()
+
     # Add files to filelist
     def run_chooser(self, widget):
-        add_dialog = gtk.FileChooserDialog("Add files..", None,
+        add_dialog = gtk.FileChooserDialog(_("Add files..."), None,
             gtk.FILE_CHOOSER_ACTION_OPEN,
             (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
             gtk.STOCK_OPEN, gtk.RESPONSE_OK))
@@ -384,12 +400,12 @@ class BatchCodeExec:
         add_dialog.set_select_multiple(True)
 
         filter = gtk.FileFilter()
-        filter.set_name("All files")
+        filter.set_name(_("All files"))
         filter.add_pattern("*")
         add_dialog.add_filter(filter)
 
         filter = gtk.FileFilter()
-        filter.set_name("Images")
+        filter.set_name(_("Images"))
         filter.add_mime_type("image/png")
         filter.add_mime_type("image/jpeg")
         filter.add_mime_type("image/gif")
@@ -414,8 +430,8 @@ class BatchCodeExec:
 
     # Change code in editor
     def code_changed(self, widget):
-        if self.status.get_text() == 'Saved':
-            self._set_status('Edited')
+        if self.status.get_text() == ST_SAVED:
+            self._set_status(ST_EDITED)
 
     # key press (Enter, Save etc)
     def key_press(self, widget, event):
@@ -445,7 +461,8 @@ class BatchCodeExec:
         code_buffer = self.ui.get_object('code').get_buffer()
         code = code_buffer.get_text(
             code_buffer.get_start_iter(), code_buffer.get_end_iter())
-        self._set_status('Saved')
+        self._set_status(ST_SAVED)
+        self._add_log(_('Code saved'), 'done')
         self.base[self._ckey] = {'descr':descr, 'code':code}
         self.base.sync()
         self._get_macro_list()
@@ -462,7 +479,7 @@ class BatchCodeExec:
         self.ui.get_object('code').\
             get_buffer().set_text(self.base[self._ckey]['code'])
         self.ui.get_object('notebook1').set_current_page(2) 
-        self._set_status('Saved')  
+        self._set_status(ST_SAVED)
 
     # Delete fragment
     def delete_fragment(self, widget):
@@ -472,7 +489,7 @@ class BatchCodeExec:
         del self.base[key]
         self.base.sync()
         self._get_macro_list()
-        if key ==self._ckey: self._clear_editor()
+        if key == self._ckey: self._clear_editor()
 
     # Execution code for selected images
     def do_selected(self, widget):
@@ -480,7 +497,7 @@ class BatchCodeExec:
         filenames = [x[0] for x in self.ui.get_object('liststore4')]
         self.ui.get_object('notebook2').set_current_page(0)  
         file_count = filenames.__len__()
-        file_num = 0    
+        file_num = err_count = done_count = 0    
         for filename in filenames:
             file_num += 1
             self.ui.get_object('progress').set_fraction(
@@ -488,12 +505,25 @@ class BatchCodeExec:
             self.ui.get_object('current_file').set_text('%s (%s/%s)'\
                 %(filename, str(file_num), str(file_count)))
             while gtk.events_pending():
-               gtk.main_iteration(False)                        
-            image = pdb.gimp_file_load(filename, filename)
-            self._ex_code(image)   
+               gtk.main_iteration(False)  
+            try:
+                image = pdb.gimp_file_load(filename, filename)
+            except Exception, error:
+                self._add_log(_('File error: ') + str(error), 'alert')
+                err_count += 1
+                continue                     
+            if not self._ex_code(image):
+                pdb.gimp_image_delete(image) 
+                break   
             self._save_img(image)
-            pdb.gimp_image_delete(image)  
+            pdb.gimp_image_delete(image) 
+            done_count += 1
+        self._add_log(_('Files selected: ') + str(file_count))
+        self._add_log(_('Files processed: ') + str(done_count), 'done') 
+        self._add_log(_('File errors: ') + str(err_count),
+            'alert' if err_count else 'done') 
         self.format_changed(self.ui.get_object('format_combo'))
+        self.ui.get_object('notebook1').set_current_page(4)
 
     # Execution code for opened images
     def do_opened(self, widget):
@@ -510,7 +540,9 @@ class BatchCodeExec:
             while gtk.events_pending():
                gtk.main_iteration(False)  
             pdb.gimp_image_undo_group_start(image)
-            self._ex_code(image)             
+            if not self._ex_code(image):
+                pdb.gimp_image_undo_group_end(image)
+                break               
             pdb.gimp_image_undo_group_end(image)
         self.format_changed(self.ui.get_object('format_combo'))
 

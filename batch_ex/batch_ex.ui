@@ -119,6 +119,7 @@
                     <property name="receives_default">True</property>
                     <property name="use_action_appearance">False</property>
                     <property name="use_stock">True</property>
+                    <signal name="clicked" handler="clear_filelist" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -172,7 +173,7 @@
           <object class="GtkLabel" id="label1">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Выбор файлов</property>
+            <property name="label" translatable="yes">File select</property>
           </object>
           <packing>
             <property name="tab_fill">False</property>
@@ -287,7 +288,7 @@
           <object class="GtkLabel" id="label2">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Выбор кода</property>
+            <property name="label" translatable="yes">Code select</property>
           </object>
           <packing>
             <property name="position">1</property>
@@ -307,7 +308,7 @@
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="label" translatable="yes">New</property>
-                    <property name="width_chars">6</property>
+                    <property name="width_chars">10</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
                       <attribute name="foreground" value="#00000000ffff"/>
@@ -451,7 +452,7 @@
           <object class="GtkLabel" id="label3">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Код</property>
+            <property name="label" translatable="yes">Code editor</property>
           </object>
           <packing>
             <property name="position">2</property>
@@ -577,7 +578,7 @@
                 </child>
                 <child>
                   <object class="GtkCheckButton" id="checkbutton1">
-                    <property name="label" translatable="yes">Сжатие</property>
+                    <property name="label" translatable="yes">Compression</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
@@ -663,7 +664,7 @@
                 <property name="layout_style">spread</property>
                 <child>
                   <object class="GtkButton" id="button6">
-                    <property name="label">Selected images</property>
+                    <property name="label" translatable="yes">Selected images</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
@@ -710,10 +711,39 @@
           <object class="GtkLabel" id="label5">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Выполнить и сохранить</property>
+            <property name="label" translatable="yes">Run and save</property>
           </object>
           <packing>
             <property name="position">3</property>
+            <property name="tab_fill">False</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkScrolledWindow" id="scrolledwindow3">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="hscrollbar_policy">never</property>
+            <property name="vscrollbar_policy">automatic</property>
+            <child>
+              <object class="GtkTextView" id="log">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="editable">False</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="position">4</property>
+          </packing>
+        </child>
+        <child type="tab">
+          <object class="GtkLabel" id="label12">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Log</property>
+          </object>
+          <packing>
+            <property name="position">4</property>
             <property name="tab_fill">False</property>
           </packing>
         </child>
