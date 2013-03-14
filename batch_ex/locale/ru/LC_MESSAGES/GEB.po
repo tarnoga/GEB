@@ -74,3 +74,6 @@ msgstr "Файлов обработано: "
 
 msgid "File errors: "
 msgstr "Файлов не удалось открыть: "
+
+msgid "Enter title!"
+msgstr "Укажите название!"

@@ -455,7 +455,7 @@ class BatchCodeExec:
     def code_save(self, widget):
         descr = self.ui.get_object('entry_descr').get_text()
         if descr == '':
-            self._alert('Enter title!')
+            self._alert(_('Enter title!'))
             return
         if self._ckey == '': self._ckey = self._keygen()        
         code_buffer = self.ui.get_object('code').get_buffer()
