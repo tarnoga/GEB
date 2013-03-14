@@ -1,0 +1,76 @@
+msgid ""
+msgstr ""
+
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Batch Code Execute"
+msgstr ""
+
+msgid "Saved"
+msgstr "Сохранен"
+
+msgid "Edited"
+msgstr "Изменен"
+
+msgid "New"
+msgstr "Новый"
+
+msgid "GEB started!"
+msgstr "GEB запущен!"
+
+msgid "PDB Browser"
+msgstr "Браузер процедур GIMP"
+
+msgid "Code error: "
+msgstr "Ошибка в коде:"
+
+msgid "Python Procedure Browser"
+msgstr "Браузер процедур GIMP"
+
+msgid "Add files"
+msgstr "Выберите файлы"
+
+msgid "All files"
+msgstr "Все файлы"
+
+msgid "Images"
+msgstr "Изображения"
+
+msgid "Code saved"
+msgstr "Код сохранен"
+
+msgid "File error: "
+msgstr "Ошибка открытия файла: "
+
+msgid "Code select"
+msgstr "Выбор фрагмента"
+
+msgid "File select"
+msgstr "Выбор файлов"
+
+msgid "Code editor"
+msgstr "Редактор кода"
+
+msgid "Run and save"
+msgstr "Выполнить и сохранить"
+
+msgid "Log"
+msgstr "Лог"
+
+msgid "Compression"
+msgstr "Сжатие"
+
+msgid "Selected images"
+msgstr "Выбранные файлы"
+
+msgid "Opened images"
+msgstr "Открытые изображения"
+
+msgid "Files selected: "
+msgstr "Файлов выбрано: "
+
+msgid "Files processed: "
+msgstr "Файлов обработано: "
+
+msgid "File errors: "
+msgstr "Файлов не удалось открыть: "
